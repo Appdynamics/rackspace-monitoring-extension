@@ -1,0 +1,29 @@
+<monitor>
+	<name>RackspaceMonitor</name>
+	<type>managed</type>
+	<description>Monitors Rackspace Cloud</description>
+	<monitor-configuration></monitor-configuration>
+	<monitor-run-task>
+		<execution-style>periodic</execution-style>
+		<execution-frequency-in-seconds>60</execution-frequency-in-seconds>
+		<name>Rackspace Monitor Run Task</name>
+		<display-name>Rackspace Monitor Task</display-name>
+		<description>Rackspace Monitor Task</description>
+		<type>java</type>
+		<execution-timeout-in-secs>60</execution-timeout-in-secs>
+		<task-arguments>
+			<argument name="username" is-required="true" default-value="adbizdev" />
+			<argument name="api-key" is-required="true" default-value="e42bf52869f4bf6d6dd89bacb0528222" />
+			<argument name="account-base" is-required="true" default-value="US"/>
+			<!-- CONFIGURE METRIC PATH (OPTIONAL):
+				Default (if default-value="") is "Custom Metrics|Solr|" under
+				Application Infrastructure Performance in every tier
+			 -->
+			<argument name="metric-path" is-required="false" default-value=""/>
+		</task-arguments>
+		<java-task>
+		      <classpath>rackspace-monitoring-extension.jar</classpath>
+		          <impl-class>com.appdynamics.extensions.rackspace.RackspaceMonitor</impl-class>
+		</java-task>
+	</monitor-run-task>
+</monitor>
