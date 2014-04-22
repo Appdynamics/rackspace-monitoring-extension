@@ -12,11 +12,11 @@ Rackspace Cloud is a set of cloud computing services from Rackspace. This extens
 1. Run 'mvn clean install' from the rackspace-monitoring-extension directory
 2. Download the file RackspaceMonitor.zip located in the 'target' directory into \<machineagent install dir\>/monitors/
 3. Unzip the downloaded file
-4. In \<machineagent install dir\>/monitors/RackspaceMonitor/, open monitor.xml and configure the Rackspace parameters.
+4. In \<machineagent install dir\>/monitors/RackspaceMonitor/, open monitor.xml and configure the Rackspace parameters. This extension uses UserName and API key as Authentication parameters. Refer [here](http://docs.rackspace.com/auth/api/v2.0/auth-client-devguide/content/QuickStart-000.html) for details 
 <pre>
 &lt;argument name="username" is-required="true" default-value="" /&gt;
 &lt;argument name="api-key" is-required="true" default-value="" /&gt;
-&lt;!-- US/UK --&gt;
+	&lt;!-- US/UK --&gt;
 &lt;argument name="account-base" is-required="true" default-value="US" /&gt;
 &lt;argument name="metric-path" is-required="false" default-value="" /&gt;
 </pre>
@@ -32,55 +32,55 @@ The following metrics are reported under \<FirstGenServers\>
 
 | Metric Name 			| Description |
 |-------------------------------|-------------|
-|{Region}/{ServerName}/progress	| The percentage value of the build status|
-|{Region}/{ServerName}/ram	| RAM in bytes|
-|{Region}/{ServerName}/swap	| Swap space in bytes|
-|{Region}/{ServerName}/vcpus	| |
-|{Region}/{ServerName}/disk	| |
+|{Region}/{ServerName}/Progress	| The percentage value of the build status|
+|{Region}/{ServerName}/RAM	| RAM in bytes|
+|{Region}/{ServerName}/Swap	| Swap space in bytes|
+|{Region}/{ServerName}/vCPUs	| vCPUs|
+|{Region}/{ServerName}/Disk Space| Disk Space|
 
 ### NextGen Server Metrics
 The following metrics are reported under \<NextGenServers\>
 
 | Metric Name 			| Description |
 |-------------------------------|-------------|
-|Limits/maxTotalInstances	| The maximum number of Cloud Servers at any one time|
-|Limits/maxTotalRAMSize(MB)	| The maximum total amount of RAM (MB) of all Cloud Servers at any one time|
-|Limits/totalCoresUsed		| The total number of cores used|
-|Limits/totalFloatingIpsUsed	| The total number of FloatingIps used|
-|Limits/totalInstancesUsed	| The total number of Cloud Servers|
-|Limits/totalPrivateNetworksUsed| The total number of PrivateNetworks|
-|Limits/totalRAMUsed(GB)	| The total amount of RAM (GB) used for all Cloud Servers|
-|Limits/totalSecurityGroupsUsed	| The total number of security groups used|
-|{Region}/{ServerName}/progress	| The percentage value of the build status|
-|{Region}/{ServerName}/ram	| RAM in bytes|
-|{Region}/{ServerName}/status	||
-|{Region}/{ServerName}/swap	| Swap space in bytes|
-|{Region}/{ServerName}/vcpus	| |
-|{Region}/{ServerName}/disk	| |
+|Limits/Max Total Instances	| The maximum number of Cloud Servers at any one time|
+|Limits/Max Total RAM Size(MB)	| The maximum total amount of RAM (MB) of all Cloud Servers at any one time|
+|Limits/Total Cores Used		| The total number of cores used|
+|Limits/Total Floating Ips Used	| The total number of FloatingIps used|
+|Limits/Total Instances Used	| The total number of Cloud Servers|
+|Limits/Total Private Networks Used| The total number of PrivateNetworks|
+|Limits/Total RAM Used(GB)	| The total amount of RAM (GB) used for all Cloud Servers|
+|Limits/Total Security Groups Used	| The total number of security groups used|
+|{Region}/{ServerName}/Progress	| The percentage value of the build status|
+|{Region}/{ServerName}/RAM	| RAM in bytes|
+|{Region}/{ServerName}/Status	|Current Sever state|
+|{Region}/{ServerName}/Swap	| Swap space in bytes|
+|{Region}/{ServerName}/vCPUs	|vCPUs |
+|{Region}/{ServerName}/Disk Space	| Disk Space|
 
 ### CloudFiles Metrics
 The following metrics are reported under \<Files\>
 
 | Metric Name 			| Description |
 |-------------------------------|-------------|
-|{Region}/{ContainerName}/count	| Number of objects in the container|
-|{Region}/{ContainerName}/bytes	| Number of bytes in the container|
+|{Region}/{ContainerName}/Count	| Number of objects in the container|
+|{Region}/{ContainerName}/Bytes	| Number of bytes in the container|
 
 ### Database Metrics
 The following metrics are reported under \<Databases\>
 
 | Metric Name 			| Description |
 |-------------------------------|-------------|
-|{Region}/{InstanceName}/status	| |
-|{Region}/{InstanceName}/volume-size| |
+|{Region}/{InstanceName}/Status	| Current instance state|
+|{Region}/{InstanceName}/Volume-size|Volume-size |
 
 ### LoadBalancer Metrics
 The following metrics are reported under \<LoadBalancers\>
 
 | Metric Name 			| Description |
 |-------------------------------|-------------|
-|{Region}/{InstanceName}/status	| |
-|{Region}/{InstanceName}/nodeCount| Number of nodes this loadbalancer caters to servicing the request|
+|{Region}/{InstanceName}/Status	| Current instance state|
+|{Region}/{InstanceName}/Node Count| Number of nodes this loadbalancer caters to servicing the request|
 
 ## Custom Dashboard
 ![]()

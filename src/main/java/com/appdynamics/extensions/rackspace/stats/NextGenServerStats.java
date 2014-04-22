@@ -32,43 +32,32 @@ public class NextGenServerStats extends Stats {
 
 	private static final String limitsUri = "/limits";
 
-	private enum Status {
-
-		ACTIVE(1), BUILD(2), DELETED(3), ERROR(4), HARD_REBOOT(5), MIGRATING(6), PASSWORD(7), REBOOT(8), REBUILD(9), RESCUE(10), RESIZE(11), REVERT_RESIZE(
-				12), SUSPENDED(13), UNKNOWN(14), VERIFY_RESIZE(15);
-		int statusInt;
-
-		private Status(int val) {
-			this.statusInt = val;
-		}
-	}
-
 	/**
-	 * Fetches metrics issuing a Http Request to the NextGenServer url specific to
-	 * the DataCenter and returns as a Map<ServerName, Map<MetricName,
+	 * Fetches metrics issuing a Http Request to the NextGenServer url specific
+	 * to the DataCenter and returns as a Map<ServerName, Map<MetricName,
 	 * MetricValue>>
 	 */
 	@Override
-	public Map<String, Map<String, Object>> getMetrics(String authToken, String url) {
+	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) {
 
 		JsonNode serviceResponse = getServiceResponse(url + uri, authToken);
 
 		List<ServerFlavor> serverFlavors = populateServerFlavors(url, authToken);
 
-		Map<String, Map<String, Object>> serverStats = new HashMap<String, Map<String, Object>>();
+		Map<String, Map<String, Long>> serverStats = new HashMap<String, Map<String, Long>>();
 		JsonNode serversNode = serviceResponse.get("servers");
 		for (JsonNode server : serversNode) {
-			Map<String, Object> stats = new HashMap<String, Object>();
-			stats.put("progress", server.path("progress").asInt());
-			stats.put("status", Status.valueOf(server.path("status").asText()).statusInt);
+			Map<String, Long> stats = new HashMap<String, Long>();
+			stats.put("Progress", server.path("progress").asLong());
+			stats.put("Status", Long.valueOf(Status.valueOf(server.path("status").asText()).statusInt));
 
 			String flavorId = server.path("flavor").path("id").asText();
 			for (ServerFlavor flavor : serverFlavors) {
 				if (flavor.getId().equals(flavorId)) {
-					stats.put("ram", flavor.getRam());
-					stats.put("swap", flavor.getSwap());
-					stats.put("vcpus", flavor.getVcpus());
-					stats.put("disk", flavor.getDisk());
+					stats.put("RAM", Long.valueOf(flavor.getRam()));
+					stats.put("Swap", Long.valueOf(flavor.getSwap()));
+					stats.put("vCPUs", Long.valueOf(flavor.getVcpus()));
+					stats.put("Disk Space", Long.valueOf(flavor.getDisk()));
 				}
 			}
 			serverStats.put(server.path("name").asText(), stats);
@@ -77,23 +66,25 @@ public class NextGenServerStats extends Stats {
 	}
 
 	/**
-	 * Fetches absolute limits for NextGenServer and returns a Map<MetricName, MetricValue>
+	 * Fetches absolute limits for NextGenServer and returns a Map<MetricName,
+	 * MetricValue>
+	 * 
 	 * @param url
 	 * @param authToken
 	 * @return
 	 */
-	public Map<String, String> getLimits(String url, String authToken) {
+	public Map<String, Long> getLimits(String url, String authToken) {
 		JsonNode serviceResponse = getServiceResponse(url + limitsUri, authToken);
-		Map<String, String> limits = new HashMap<String, String>();
+		Map<String, Long> limits = new HashMap<String, Long>();
 		JsonNode limitsNode = serviceResponse.get("limits").path("absolute");
-		limits.put("totalCoresUsed", limitsNode.path("totalCoresUsed").asText());
-		limits.put("totalFloatingIpsUsed", limitsNode.path("totalFloatingIpsUsed").asText());
-		limits.put("totalInstancesUsed", limitsNode.path("totalInstancesUsed").asText());
-		limits.put("totalPrivateNetworksUsed", limitsNode.path("totalPrivateNetworksUsed").asText());
-		limits.put("totalRAMUsed(GB)", limitsNode.path("totalRAMUsed").asText());
-		limits.put("totalSecurityGroupsUsed", limitsNode.path("totalSecurityGroupsUsed").asText());
-		limits.put("maxTotalInstances", limitsNode.path("maxTotalInstances").asText());
-		limits.put("maxTotalRAMSize(MB)", limitsNode.path("maxImageMeta").asText());
+		limits.put("Total Cores Used", limitsNode.path("totalCoresUsed").asLong());
+		limits.put("Total Floating Ips Used", limitsNode.path("totalFloatingIpsUsed").asLong());
+		limits.put("Total Instances Used", limitsNode.path("totalInstancesUsed").asLong());
+		limits.put("Total Private Networks Used", limitsNode.path("totalPrivateNetworksUsed").asLong());
+		limits.put("Total RAM Used(GB)", limitsNode.path("totalRAMUsed").asLong());
+		limits.put("Total Security Groups Used", limitsNode.path("totalSecurityGroupsUsed").asLong());
+		limits.put("Max Total Instances", limitsNode.path("maxTotalInstances").asLong());
+		limits.put("Max Total RAM Size(MB)", limitsNode.path("maxImageMeta").asLong());
 
 		return limits;
 	}
@@ -101,6 +92,7 @@ public class NextGenServerStats extends Stats {
 	/**
 	 * Fetches ServerFlavours by issuing a Http Request to determine the
 	 * params(RAM, Disk, etc) based on ID
+	 * 
 	 * @param url
 	 * @param authToken
 	 * @return

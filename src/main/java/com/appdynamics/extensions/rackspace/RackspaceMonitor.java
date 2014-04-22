@@ -15,7 +15,6 @@
  */
 package com.appdynamics.extensions.rackspace;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -114,15 +113,19 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * @param defRegion
 	 */
 	private void populateFirstGenServerStats(Map<String, String> serviceEndPoints, String authToken, String defRegion) {
-		String serviceUrl = serviceEndPoints.get(defRegion);
-		FirstGenServerStats cloudServerStats = new FirstGenServerStats();
-		Map<String, Map<String, Object>> metricsMap = cloudServerStats.getMetrics(authToken, serviceUrl);
-		for (Entry<String, Map<String, Object>> serverMetrics : metricsMap.entrySet()) {
-			String serverName = serverMetrics.getKey();
-			Map<String, Object> serverStats = serverMetrics.getValue();
-			for (Entry<String, Object> stats : serverStats.entrySet()) {
-				printMetric(String.format(FirstGenServerStats.metricPath, defRegion, serverName), stats.getKey(), stats.getValue());
+		try {
+			String serviceUrl = serviceEndPoints.get(defRegion);
+			FirstGenServerStats cloudServerStats = new FirstGenServerStats();
+			Map<String, Map<String, Long>> metricsMap = cloudServerStats.getMetrics(authToken, serviceUrl);
+			for (Entry<String, Map<String, Long>> serverMetrics : metricsMap.entrySet()) {
+				String serverName = serverMetrics.getKey();
+				Map<String, Long> serverStats = serverMetrics.getValue();
+				for (Entry<String, Long> stats : serverStats.entrySet()) {
+					printMetric(String.format(FirstGenServerStats.metricPath, defRegion, serverName), stats.getKey(), stats.getValue());
+				}
 			}
+		} catch (Exception e) {
+			LOG.error("Error fetching First GenServer stats ", e);
 		}
 	}
 
@@ -135,65 +138,86 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * @param authToken
 	 */
 	private void populateAccountLimits(String url, String authToken) {
-		Map<String, String> limitsMap = new NextGenServerStats().getLimits(url, authToken);
-		for (Entry<String, String> limits : limitsMap.entrySet()) {
-			printMetric(NextGenServerStats.limitsPath, limits.getKey(), limits.getValue());
+		try {
+			Map<String, Long> limitsMap = new NextGenServerStats().getLimits(url, authToken);
+			for (Entry<String, Long> limits : limitsMap.entrySet()) {
+				printMetric(NextGenServerStats.limitsPath, limits.getKey(), limits.getValue());
+			}
+		} catch (Exception e) {
+			LOG.error("Error fetching Account limits for NextGen Server", e);
 		}
 	}
 
 	/**
 	 * Populates and prints NextGen server metrics to AppDynamics Controller
+	 * 
 	 * @param serviceEndPoints
 	 * @param authToken
 	 */
 	private void populateNextGenServerStats(Map<String, String> serviceEndPoints, String authToken) {
 		for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
-			NextGenServerStats cloudServerStats = new NextGenServerStats();
-			Map<String, Map<String, Object>> metricsMap = cloudServerStats.getMetrics(authToken, regionEndPoint.getValue());
-			for (Entry<String, Map<String, Object>> serverMetrics : metricsMap.entrySet()) {
-				String serverName = serverMetrics.getKey();
-				Map<String, Object> serverStats = serverMetrics.getValue();
-				for (Entry<String, Object> stats : serverStats.entrySet()) {
-					printMetric(String.format(NextGenServerStats.metricPath, regionEndPoint.getKey(), serverName), stats.getKey(), stats.getValue());
+			try {
+				NextGenServerStats cloudServerStats = new NextGenServerStats();
+				Map<String, Map<String, Long>> metricsMap = cloudServerStats.getMetrics(authToken, regionEndPoint.getValue());
+				for (Entry<String, Map<String, Long>> serverMetrics : metricsMap.entrySet()) {
+					String serverName = serverMetrics.getKey();
+					Map<String, Long> serverStats = serverMetrics.getValue();
+					for (Entry<String, Long> stats : serverStats.entrySet()) {
+						printMetric(String.format(NextGenServerStats.metricPath, regionEndPoint.getKey(), serverName), stats.getKey(),
+								stats.getValue());
+					}
 				}
+			} catch (Exception e) {
+				LOG.error("Error populating NextGen Server Stats for region " + regionEndPoint.getKey(), e);
 			}
 		}
 	}
 
 	/**
 	 * Populates and prints Files metrics to AppDynamics Controller
+	 * 
 	 * @param serviceEndPoints
 	 * @param authToken
 	 */
 	private void populateFileStats(Map<String, String> serviceEndPoints, String authToken) {
 		for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
-			CloudFilesStats fileStats = new CloudFilesStats();
-			Map<String, Map<String, Object>> metricsMap = fileStats.getMetrics(authToken, regionEndPoint.getValue());
-			for (Entry<String, Map<String, Object>> containerMetrics : metricsMap.entrySet()) {
-				String containerName = containerMetrics.getKey();
-				Map<String, Object> containerStats = containerMetrics.getValue();
-				for (Entry<String, Object> stats : containerStats.entrySet()) {
-					printMetric(String.format(CloudFilesStats.metricPath, regionEndPoint.getKey(), containerName), stats.getKey(), stats.getValue());
+			try {
+				CloudFilesStats fileStats = new CloudFilesStats();
+				Map<String, Map<String, Long>> metricsMap = fileStats.getMetrics(authToken, regionEndPoint.getValue());
+				for (Entry<String, Map<String, Long>> containerMetrics : metricsMap.entrySet()) {
+					String containerName = containerMetrics.getKey();
+					Map<String, Long> containerStats = containerMetrics.getValue();
+					for (Entry<String, Long> stats : containerStats.entrySet()) {
+						printMetric(String.format(CloudFilesStats.metricPath, regionEndPoint.getKey(), containerName), stats.getKey(),
+								stats.getValue());
+					}
 				}
+			} catch (Exception e) {
+				LOG.error("Error fetching File metrics for region " + regionEndPoint.getKey(), e);
 			}
 		}
 	}
 
 	/**
 	 * Populates and prints Database metrics to AppDynamics Controller
+	 * 
 	 * @param serviceEndPoints
 	 * @param authToken
 	 */
 	private void populateDatabaseStats(Map<String, String> serviceEndPoints, String authToken) {
 		for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
-			DatabaseStats databaseStats = new DatabaseStats();
-			Map<String, Map<String, Object>> metricsMap = databaseStats.getMetrics(authToken, regionEndPoint.getValue());
-			for (Entry<String, Map<String, Object>> instanceMetrics : metricsMap.entrySet()) {
-				String instanceName = instanceMetrics.getKey();
-				Map<String, Object> instanceStats = instanceMetrics.getValue();
-				for (Entry<String, Object> stats : instanceStats.entrySet()) {
-					printMetric(String.format(DatabaseStats.metricPath, regionEndPoint.getKey(), instanceName), stats.getKey(), stats.getValue());
+			try {
+				DatabaseStats databaseStats = new DatabaseStats();
+				Map<String, Map<String, Long>> metricsMap = databaseStats.getMetrics(authToken, regionEndPoint.getValue());
+				for (Entry<String, Map<String, Long>> instanceMetrics : metricsMap.entrySet()) {
+					String instanceName = instanceMetrics.getKey();
+					Map<String, Long> instanceStats = instanceMetrics.getValue();
+					for (Entry<String, Long> stats : instanceStats.entrySet()) {
+						printMetric(String.format(DatabaseStats.metricPath, regionEndPoint.getKey(), instanceName), stats.getKey(), stats.getValue());
+					}
 				}
+			} catch (Exception e) {
+				LOG.error("Error fetching Database Stats for region " + regionEndPoint.getKey(), e);
 			}
 		}
 
@@ -201,19 +225,25 @@ public class RackspaceMonitor extends AManagedMonitor {
 
 	/**
 	 * Populates and prints LoadBalancer metrics to AppDynamics Controller
+	 * 
 	 * @param serviceEndPoints
 	 * @param authToken
 	 */
 	private void populateLoadBalancerStats(Map<String, String> serviceEndPoints, String authToken) {
 		for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
-			LoadBalancerStats loadbalancerStats = new LoadBalancerStats();
-			Map<String, Map<String, Object>> metricsMap = loadbalancerStats.getMetrics(authToken, regionEndPoint.getValue());
-			for (Entry<String, Map<String, Object>> instanceMetrics : metricsMap.entrySet()) {
-				String instanceName = instanceMetrics.getKey();
-				Map<String, Object> instanceStats = instanceMetrics.getValue();
-				for (Entry<String, Object> stats : instanceStats.entrySet()) {
-					printMetric(String.format(LoadBalancerStats.metricPath, regionEndPoint.getKey(), instanceName), stats.getKey(), stats.getValue());
+			try {
+				LoadBalancerStats loadbalancerStats = new LoadBalancerStats();
+				Map<String, Map<String, Long>> metricsMap = loadbalancerStats.getMetrics(authToken, regionEndPoint.getValue());
+				for (Entry<String, Map<String, Long>> instanceMetrics : metricsMap.entrySet()) {
+					String instanceName = instanceMetrics.getKey();
+					Map<String, Long> instanceStats = instanceMetrics.getValue();
+					for (Entry<String, Long> stats : instanceStats.entrySet()) {
+						printMetric(String.format(LoadBalancerStats.metricPath, regionEndPoint.getKey(), instanceName), stats.getKey(),
+								stats.getValue());
+					}
 				}
+			} catch (Exception e) {
+				LOG.error("Error fetching load balancer metrics for region " + regionEndPoint.getKey(), e);
 			}
 		}
 
@@ -241,21 +271,5 @@ public class RackspaceMonitor extends AManagedMonitor {
 
 	private static String getImplementationVersion() {
 		return RackspaceMonitor.class.getPackage().getImplementationTitle();
-	}
-
-	public static void main(String[] args) {
-
-		RackspaceMonitor monitor = new RackspaceMonitor();
-		try {
-			Map<String, String> taskArguments = new HashMap<String, String>();
-			taskArguments.put("username", "adbizdev");
-			taskArguments.put("api-key", "e42bf52869f4bf6d6dd89bacb0528222");
-			taskArguments.put("accountbase", "US");
-			monitor.execute(taskArguments, null);
-		} catch (TaskExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
 	}
 }

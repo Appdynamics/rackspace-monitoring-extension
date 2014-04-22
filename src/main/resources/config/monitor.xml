@@ -12,11 +12,12 @@
 		<type>java</type>
 		<execution-timeout-in-secs>60</execution-timeout-in-secs>
 		<task-arguments>
-			<argument name="username" is-required="true" default-value="adbizdev" />
-			<argument name="api-key" is-required="true" default-value="e42bf52869f4bf6d6dd89bacb0528222" />
+			<argument name="username" is-required="true" default-value="" />
+			<argument name="api-key" is-required="true" default-value="" />
+						<!-- US/UK -->
 			<argument name="account-base" is-required="true" default-value="US"/>
 			<!-- CONFIGURE METRIC PATH (OPTIONAL):
-				Default (if default-value="") is "Custom Metrics|Solr|" under
+				Default (if default-value="") is "Custom Metrics|Rackspace|" under
 				Application Infrastructure Performance in every tier
 			 -->
 			<argument name="metric-path" is-required="false" default-value=""/>

@@ -31,17 +31,17 @@ public class CloudFilesStats extends Stats {
 	 * the DataCenter and returns as a Map<ContainerName, Map<MetricName,
 	 * MetricValue>>
 	 */
-	public Map<String, Map<String, Object>> getMetrics(String authToken, String url) {
+	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) {
 
-		Map<String, Map<String, Object>> stats = new HashMap<String, Map<String, Object>>();
+		Map<String, Map<String, Long>> stats = new HashMap<String, Map<String, Long>>();
 
 		JsonNode containersNode = getServiceResponse(url + queryString, authToken);
 
 		for (JsonNode container : containersNode) {
-			Map<String, Object> containerStats = new HashMap<String, Object>();
+			Map<String, Long> containerStats = new HashMap<String, Long>();
 			String containerName = container.path("name").asText();
-			containerStats.put("count", container.path("count").asText());
-			containerStats.put("bytes", container.path("bytes").asText());
+			containerStats.put("Count", container.path("count").asLong());
+			containerStats.put("Bytes", container.path("bytes").asLong());
 			stats.put(containerName, containerStats);
 		}
 		return stats;

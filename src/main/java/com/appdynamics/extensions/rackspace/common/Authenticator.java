@@ -79,9 +79,6 @@ public class Authenticator {
 			conn.setRequestMethod("POST");
 			conn.setDoOutput(true);
 			conn.setRequestProperty("Content-Type", "application/json");
-			// String param =
-			// "{\"auth\":{\"RAX-KSKEY:apiKeyCredentials\":{\"username\":\"" +
-			// userName + "\",\"apiKey\":\"" + apiKey + "\"}}}";
 			String param = String.format(httpPostParam, userName, apiKey);
 			OutputStream outputStream = conn.getOutputStream();
 			outputStream.write(param.getBytes());

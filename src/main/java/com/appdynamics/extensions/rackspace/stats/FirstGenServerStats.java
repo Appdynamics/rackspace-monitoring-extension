@@ -27,6 +27,8 @@ public class FirstGenServerStats extends Stats {
 	public static final String metricPath = "FirstGenServers |%s|%s|";
 
 	private static final String uri = "/servers/detail";
+	
+	private static final String flavorsUri = "/flavors/detail";
 
 	/**
 	 * Fetches metrics issuing a Http Request to the FirstGenServer url specific
@@ -34,23 +36,23 @@ public class FirstGenServerStats extends Stats {
 	 * Map<MetricName, MetricValue>>
 	 */
 	@Override
-	public Map<String, Map<String, Object>> getMetrics(String authToken, String url) {
+	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) {
 		JsonNode serviceResponse = getServiceResponse(url + uri, authToken);
 
 		List<ServerFlavor> serverFlavors = populateServerFlavors(url, authToken);
 
-		Map<String, Map<String, Object>> serverStats = new HashMap<String, Map<String, Object>>();
+		Map<String, Map<String, Long>> serverStats = new HashMap<String, Map<String, Long>>();
 		JsonNode serversNode = serviceResponse.get("servers");
 		for (JsonNode server : serversNode) {
-			Map<String, Object> stats = new HashMap<String, Object>();
-			stats.put("progress", server.path("progress").asText());
+			Map<String, Long> stats = new HashMap<String, Long>();
+			stats.put("Progress", server.path("progress").asLong());
 			String flavorId = server.path("flavorId").asText();
 			for (ServerFlavor flavor : serverFlavors) {
 				if (flavor.getId().equals(flavorId)) {
-					stats.put("ram", flavor.getRam());
-					stats.put("swap", flavor.getSwap());
-					stats.put("vcpus", flavor.getVcpus());
-					stats.put("disk", flavor.getDisk());
+					stats.put("RAM", Long.valueOf(flavor.getRam()));
+					stats.put("Swap", Long.valueOf(flavor.getSwap()));
+					stats.put("vCPUs", Long.valueOf(flavor.getVcpus()));
+					stats.put("Disk Space", Long.valueOf(flavor.getDisk()));
 				}
 			}
 			serverStats.put(server.path("name").asText(), stats);
@@ -67,7 +69,7 @@ public class FirstGenServerStats extends Stats {
 	 * @return
 	 */
 	private List<ServerFlavor> populateServerFlavors(String url, String authToken) {
-		JsonNode serviceResponse = getServiceResponse(url + "/flavors/detail", authToken);
+		JsonNode serviceResponse = getServiceResponse(url + flavorsUri, authToken);
 		JsonNode flavors = serviceResponse.get("flavors");
 		List<ServerFlavor> serverFlavors = new ArrayList<ServerFlavor>();
 		for (JsonNode flavor : flavors) {

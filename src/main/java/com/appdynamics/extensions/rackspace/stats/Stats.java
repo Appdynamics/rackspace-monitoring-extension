@@ -81,18 +81,18 @@ public abstract class Stats {
 		try {
 			jsonNode = mapper.readValue(responseStream, JsonNode.class);
 		} catch (JsonParseException e) {
-			LOG.error(e.getMessage());
+			LOG.error(e);
 			throw new RuntimeException(e);
 		} catch (JsonMappingException e) {
-			LOG.error(e.getMessage());
+			LOG.error(e);
 			throw new RuntimeException(e);
 		} catch (IOException e) {
-			LOG.error(e.getMessage());
+			LOG.error(e);
 			throw new RuntimeException(e);
 		}
 		return jsonNode;
 	}
 
-	public abstract Map<String, Map<String, Object>> getMetrics(String authToken, String url);
+	public abstract Map<String, Map<String, Long>> getMetrics(String authToken, String url);
 
 }
