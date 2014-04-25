@@ -18,6 +18,8 @@ package com.appdynamics.extensions.rackspace.stats;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.appdynamics.extensions.http.SimpleHttpClient;
+import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class CloudFilesStats extends Stats {
@@ -26,12 +28,18 @@ public class CloudFilesStats extends Stats {
 
 	private static final String queryString = "?format=json";
 
+	public CloudFilesStats(SimpleHttpClient httpClient) {
+		super(httpClient);
+	}
+
 	/**
 	 * Fetches metrics issuing a Http Request to the CloudFiles url specific to
 	 * the DataCenter and returns as a Map<ContainerName, Map<MetricName,
 	 * MetricValue>>
+	 * 
+	 * @throws RackspaceMonitorException
 	 */
-	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) {
+	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) throws RackspaceMonitorException {
 
 		Map<String, Map<String, Long>> stats = new HashMap<String, Map<String, Long>>();
 

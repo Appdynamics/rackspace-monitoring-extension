@@ -18,6 +18,8 @@ package com.appdynamics.extensions.rackspace.stats;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.appdynamics.extensions.http.SimpleHttpClient;
+import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class LoadBalancerStats extends Stats {
@@ -26,13 +28,19 @@ public class LoadBalancerStats extends Stats {
 
 	private static final String uri = "/loadbalancers";
 
+	public LoadBalancerStats(SimpleHttpClient httpClient) {
+		super(httpClient);
+	}
+
 	/**
 	 * Fetches metrics issuing a Http Request to the LoadBalancer url specific
 	 * to the DataCenter and returns as a Map<Loadbalancer, Map<MetricName,
 	 * MetricValue>>
+	 * 
+	 * @throws RackspaceMonitorException
 	 */
 	@Override
-	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) {
+	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) throws RackspaceMonitorException {
 		JsonNode serviceResponse = getServiceResponse(url + uri, authToken);
 		Map<String, Map<String, Long>> loadBalancerStats = getMetricsFromNode(serviceResponse);
 		return loadBalancerStats;

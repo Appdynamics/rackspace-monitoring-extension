@@ -18,6 +18,8 @@ package com.appdynamics.extensions.rackspace.stats;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.appdynamics.extensions.http.SimpleHttpClient;
+import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class DatabaseStats extends Stats {
@@ -26,13 +28,19 @@ public class DatabaseStats extends Stats {
 
 	private static final String instancesUri = "/instances";
 
+	public DatabaseStats(SimpleHttpClient httpClient) {
+		super(httpClient);
+	}
+
 	/**
 	 * Fetches metrics issuing a Http Request to the Databases url specific to
 	 * the DataCenter and returns as a Map<InstanceName, Map<MetricName,
 	 * MetricValue>>
+	 * 
+	 * @throws RackspaceMonitorException
 	 */
 	@Override
-	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) {
+	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) throws RackspaceMonitorException {
 		JsonNode serviceResponse = getServiceResponse(url + instancesUri, authToken);
 		Map<String, Map<String, Long>> instanceStats = getMetricsFromNode(serviceResponse);
 		return instanceStats;

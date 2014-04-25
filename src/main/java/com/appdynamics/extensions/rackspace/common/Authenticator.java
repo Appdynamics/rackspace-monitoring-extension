@@ -16,17 +16,15 @@
 package com.appdynamics.extensions.rackspace.common;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.net.ssl.HttpsURLConnection;
-
 import org.apache.log4j.Logger;
 
+import com.appdynamics.extensions.http.Response;
+import com.appdynamics.extensions.http.SimpleHttpClient;
+import com.appdynamics.extensions.http.WebTarget;
+import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -38,13 +36,19 @@ public class Authenticator {
 
 	private static final String httpPostParam = "{\"auth\":{\"RAX-KSKEY:apiKeyCredentials\":{\"username\":\"%s\",\"apiKey\":\"%s\"}}}";
 
-	private String authToken;
+	private static final String TOKEN_URI = "/tokens";
 
-	private String accountId;
+	private String authToken;
 
 	private String defaultRegion;
 
 	private Map<String, Map<String, String>> endpoints;
+
+	private final SimpleHttpClient httpClient;
+
+	public Authenticator(final SimpleHttpClient httpClient) {
+		this.httpClient = httpClient;
+	}
 
 	/**
 	 * Authenticates by issuing a POST /tokens request and parses the response
@@ -52,65 +56,69 @@ public class Authenticator {
 	 * Map<Service, Map<Region, publicUrl>>. The Authentication Token and
 	 * ServiceEndPoint Url are used for further API calls.
 	 * 
+	 * @param httpClient
+	 * 
 	 * @param userName
 	 * @param apiKey
 	 * @param authenticationEndPoint
+	 * @throws RackspaceMonitorException
 	 */
-	public void authenticate(String userName, String apiKey, String authenticationEndPoint) {
-		URL url = null;
+	public void authenticate(String userName, String apiKey, String authenticationEndPoint) throws RackspaceMonitorException {
+		Response response = postAuthenticationRequest(userName, apiKey, authenticationEndPoint);
 		try {
-			url = new URL(authenticationEndPoint + "/tokens");
-		} catch (MalformedURLException e) {
-			LOG.error(e);
-			throw new RuntimeException(e);
+			JsonNode node = getAuthenticationResponeNode(response);
+			int statusCode = response.getStatus();
+			if (!(statusCode == 200 || statusCode == 203 || statusCode == 300)) {
+				String message = response.getStatusLine() + " " + node.findValue("message").toString();
+				LOG.error("Error in authentication response " + message);
+				throw new RackspaceMonitorException("Error in authentication response " + message);
+			}
+			parseAuthenticationResponse(node);
+		} finally {
+			try {
+				if (response != null) {
+					response.close();
+				}
+			} catch (Exception e) {
+				// Ignore
+			}
 		}
 
-		JsonNode accessNode = executePostRequest(url, userName, apiKey);
-
-		parseAuthenticationResponse(accessNode);
+		if (LOG.isDebugEnabled()) {
+			LOG.debug("Authenticated to " + authenticationEndPoint + "successfully");
+		}
 
 	}
 
-	private JsonNode executePostRequest(URL url, String userName, String apiKey) {
-		HttpsURLConnection conn = null;
-		InputStream responseStream = null;
-		try {
-			conn = (HttpsURLConnection) url.openConnection();
-			conn.setRequestMethod("POST");
-			conn.setDoOutput(true);
-			conn.setRequestProperty("Content-Type", "application/json");
-			String param = String.format(httpPostParam, userName, apiKey);
-			OutputStream outputStream = conn.getOutputStream();
-			outputStream.write(param.getBytes());
-			outputStream.flush();
-			outputStream.close();
-		} catch (IOException e) {
-			LOG.error("Failed to execute Http POST authentication request " + url, e);
-			throw new RuntimeException(e);
-		}
+	private Response postAuthenticationRequest(String userName, String apiKey, String authenticationEndPoint) {
+		WebTarget target = httpClient.target(authenticationEndPoint + TOKEN_URI);
+		target.header("Content-Type", "application/json");
+		String data = String.format(httpPostParam, userName, apiKey);
+		Response response = target.post(data);
+		return response;
+	}
 
-		JsonNode accessNode = null;
+	private JsonNode getAuthenticationResponeNode(Response response) throws RackspaceMonitorException {
+		ObjectMapper mapper = new ObjectMapper();
 		try {
-			responseStream = conn.getInputStream();
-			ObjectMapper mapper = new ObjectMapper();
-			accessNode = mapper.readValue(responseStream, JsonNode.class).path("access");
+			JsonNode node = mapper.readValue(response.inputStream(), JsonNode.class);
+			return node;
 		} catch (JsonParseException e) {
-			LOG.error("Error parsing ", e);
-			throw new RuntimeException(e);
+			LOG.error(e);
+			throw new RackspaceMonitorException(e);
 		} catch (JsonMappingException e) {
-			LOG.error("Error parsing ", e);
-			throw new RuntimeException(e);
+			LOG.error(e);
+			throw new RackspaceMonitorException(e);
 		} catch (IOException e) {
 			LOG.error(e);
-			throw new RuntimeException(e);
+			throw new RackspaceMonitorException(e);
 		}
-		return accessNode;
 	}
 
-	private void parseAuthenticationResponse(JsonNode accessNode) {
+	private void parseAuthenticationResponse(JsonNode node) {
+		JsonNode accessNode = node.path("access");
 		JsonNode tokenNode = accessNode.path("token");
 		setAuthToken(tokenNode.path("id").asText());
-		setAccountId(tokenNode.path("tenant").path("id").asText());
 		setDefaultRegion(accessNode.path("user").path("RAX-AUTH:defaultRegion").asText());
 
 		JsonNode serviceCatalog = accessNode.get("serviceCatalog");
@@ -137,14 +145,6 @@ public class Authenticator {
 
 	public void setAuthToken(String authToken) {
 		this.authToken = authToken;
-	}
-
-	public String getAccountId() {
-		return accountId;
-	}
-
-	public void setAccountId(String accountId) {
-		this.accountId = accountId;
 	}
 
 	public Map<String, Map<String, String>> getEndpoints() {

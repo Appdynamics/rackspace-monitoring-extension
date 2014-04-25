@@ -20,6 +20,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.appdynamics.extensions.http.SimpleHttpClient;
+import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class FirstGenServerStats extends Stats {
@@ -27,16 +29,22 @@ public class FirstGenServerStats extends Stats {
 	public static final String metricPath = "FirstGenServers |%s|%s|";
 
 	private static final String uri = "/servers/detail";
-	
+
 	private static final String flavorsUri = "/flavors/detail";
+
+	public FirstGenServerStats(SimpleHttpClient httpClient) {
+		super(httpClient);
+	}
 
 	/**
 	 * Fetches metrics issuing a Http Request to the FirstGenServer url specific
 	 * to the default datacenter and returns as a Map<ServerName,
 	 * Map<MetricName, MetricValue>>
+	 * 
+	 * @throws RackspaceMonitorException
 	 */
 	@Override
-	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) {
+	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) throws RackspaceMonitorException {
 		JsonNode serviceResponse = getServiceResponse(url + uri, authToken);
 
 		List<ServerFlavor> serverFlavors = populateServerFlavors(url, authToken);
@@ -67,8 +75,9 @@ public class FirstGenServerStats extends Stats {
 	 * @param url
 	 * @param authToken
 	 * @return
+	 * @throws RackspaceMonitorException
 	 */
-	private List<ServerFlavor> populateServerFlavors(String url, String authToken) {
+	private List<ServerFlavor> populateServerFlavors(String url, String authToken) throws RackspaceMonitorException {
 		JsonNode serviceResponse = getServiceResponse(url + flavorsUri, authToken);
 		JsonNode flavors = serviceResponse.get("flavors");
 		List<ServerFlavor> serverFlavors = new ArrayList<ServerFlavor>();

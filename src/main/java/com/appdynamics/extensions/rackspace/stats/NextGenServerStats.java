@@ -20,6 +20,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.appdynamics.extensions.http.SimpleHttpClient;
+import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
 import com.fasterxml.jackson.databind.JsonNode;
 
 public class NextGenServerStats extends Stats {
@@ -32,13 +34,19 @@ public class NextGenServerStats extends Stats {
 
 	private static final String limitsUri = "/limits";
 
+	public NextGenServerStats(SimpleHttpClient httpClient) {
+		super(httpClient);
+	}
+
 	/**
 	 * Fetches metrics issuing a Http Request to the NextGenServer url specific
 	 * to the DataCenter and returns as a Map<ServerName, Map<MetricName,
 	 * MetricValue>>
+	 * 
+	 * @throws RackspaceMonitorException
 	 */
 	@Override
-	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) {
+	public Map<String, Map<String, Long>> getMetrics(String authToken, String url) throws RackspaceMonitorException {
 
 		JsonNode serviceResponse = getServiceResponse(url + uri, authToken);
 
@@ -72,8 +80,9 @@ public class NextGenServerStats extends Stats {
 	 * @param url
 	 * @param authToken
 	 * @return
+	 * @throws RackspaceMonitorException
 	 */
-	public Map<String, Long> getLimits(String url, String authToken) {
+	public Map<String, Long> getLimits(String url, String authToken) throws RackspaceMonitorException {
 		JsonNode serviceResponse = getServiceResponse(url + limitsUri, authToken);
 		Map<String, Long> limits = new HashMap<String, Long>();
 		JsonNode limitsNode = serviceResponse.get("limits").path("absolute");
@@ -96,8 +105,9 @@ public class NextGenServerStats extends Stats {
 	 * @param url
 	 * @param authToken
 	 * @return
+	 * @throws RackspaceMonitorException
 	 */
-	private List<ServerFlavor> populateServerFlavors(String url, String authToken) {
+	private List<ServerFlavor> populateServerFlavors(String url, String authToken) throws RackspaceMonitorException {
 		JsonNode serviceResponse = getServiceResponse(url + "/flavors/detail", authToken);
 		JsonNode flavors = serviceResponse.get("flavors");
 		List<ServerFlavor> serverFlavors = new ArrayList<ServerFlavor>();

@@ -16,15 +16,14 @@
 package com.appdynamics.extensions.rackspace.stats;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.Map;
-
-import javax.net.ssl.HttpsURLConnection;
 
 import org.apache.log4j.Logger;
 
+import com.appdynamics.extensions.http.Response;
+import com.appdynamics.extensions.http.SimpleHttpClient;
+import com.appdynamics.extensions.http.WebTarget;
+import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,6 +33,12 @@ public abstract class Stats {
 
 	private static final Logger LOG = Logger.getLogger("com.singularity.extensions.Stats");
 
+	private final SimpleHttpClient httpClient;
+
+	public Stats(SimpleHttpClient httpClient) {
+		this.httpClient = httpClient;
+	}
+
 	/**
 	 * Processes the Get HttpRequest to the resource given the Authentication
 	 * Token. The response is a JsonNode used further to retrieve metrics using
@@ -42,57 +47,55 @@ public abstract class Stats {
 	 * @param resource
 	 * @param authToken
 	 * @return
+	 * @throws RackspaceMonitorException
 	 */
-	public JsonNode getServiceResponse(String resource, String authToken) {
-		URL url = null;
+	public JsonNode getServiceResponse(String resource, String authToken) throws RackspaceMonitorException {
+		Response response = null;
 		try {
-			url = new URL(resource);
+			WebTarget target = httpClient.target(resource);
+			target.header("Content-Type", "application/json");
+			target.header("Accept", "application/json");
+			target.header("X-Auth-Token", authToken);
 
-		} catch (MalformedURLException e) {
-			LOG.error(e);
-			throw new RuntimeException(e);
+			response = target.get();
+
+			JsonNode jsonNode = getAuthenticationResponeNode(response);
+
+			int statusCode = response.getStatus();
+			if (!(statusCode == 200 || statusCode == 203 || statusCode == 300)) {
+				String message = response.getStatusLine() + " " + jsonNode.findValue("message").toString();
+				LOG.error("Error in response " + message);
+				throw new RackspaceMonitorException("Error in response " + message);
+			}
+			return jsonNode;
+		} finally {
+			try {
+				if (response != null) {
+					response.close();
+				}
+			} catch (Exception e1) {
+				// Ignore
+			}
 		}
-		JsonNode jsonNode = executeGetRequest(url, authToken);
-		return jsonNode;
 	}
 
-	private JsonNode executeGetRequest(URL url, String authToken) {
-		HttpsURLConnection conn = null;
-		InputStream responseStream = null;
-		try {
-			conn = (HttpsURLConnection) url.openConnection();
-			conn.setRequestMethod("GET");
-			conn.setRequestProperty("Content-Type", "application/json");
-			conn.setRequestProperty("Accept", "application/json");
-			conn.setRequestProperty("X-Auth-Token", authToken);
-		} catch (IOException e) {
-			LOG.error("Failed to execute Http Request to " + url, e);
-			throw new RuntimeException(e);
-		}
-
-		try {
-			responseStream = conn.getInputStream();
-		} catch (IOException e) {
-			LOG.error(e);
-			throw new RuntimeException(e);
-		}
-		JsonNode jsonNode = null;
+	private JsonNode getAuthenticationResponeNode(Response response) throws RackspaceMonitorException {
 		ObjectMapper mapper = new ObjectMapper();
 		try {
-			jsonNode = mapper.readValue(responseStream, JsonNode.class);
+			JsonNode node = mapper.readValue(response.inputStream(), JsonNode.class);
+			return node;
 		} catch (JsonParseException e) {
 			LOG.error(e);
-			throw new RuntimeException(e);
+			throw new RackspaceMonitorException(e);
 		} catch (JsonMappingException e) {
 			LOG.error(e);
-			throw new RuntimeException(e);
+			throw new RackspaceMonitorException(e);
 		} catch (IOException e) {
 			LOG.error(e);
-			throw new RuntimeException(e);
+			throw new RackspaceMonitorException(e);
 		}
-		return jsonNode;
 	}
 
-	public abstract Map<String, Map<String, Long>> getMetrics(String authToken, String url);
+	public abstract Map<String, Map<String, Long>> getMetrics(String authToken, String url) throws RackspaceMonitorException;
 
 }

@@ -15,13 +15,16 @@
  */
 package com.appdynamics.extensions.rackspace;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.log4j.Logger;
 
+import com.appdynamics.extensions.http.SimpleHttpClient;
 import com.appdynamics.extensions.rackspace.common.AccountBase;
 import com.appdynamics.extensions.rackspace.common.Authenticator;
+import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
 import com.appdynamics.extensions.rackspace.stats.CloudFilesStats;
 import com.appdynamics.extensions.rackspace.stats.DatabaseStats;
 import com.appdynamics.extensions.rackspace.stats.FirstGenServerStats;
@@ -37,11 +40,16 @@ public class RackspaceMonitor extends AManagedMonitor {
 
 	private static Logger LOG = Logger.getLogger("com.singularity.extensions.RackspaceMonitor");
 
-	private static String metric_path_prefix = "Custom Metrics|Rackspace|";
+	private static final String DEFAULT_METRIC_PREFIX = "Custom Metrics|Rackspace|";
+
+	private static String metric_path_prefix = DEFAULT_METRIC_PREFIX;
+
+	private SimpleHttpClient httpClient;
 
 	public RackspaceMonitor() {
 		String msg = "Using Monitor Version [" + getImplementationVersion() + "]";
 		LOG.info(msg);
+		System.out.println(msg);
 	}
 
 	/**
@@ -49,39 +57,72 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * collects the metrics and uploads them to the AppDynamics Controller
 	 */
 	public TaskOutput execute(Map<String, String> taskArguments, TaskExecutionContext arg1) throws TaskExecutionException {
-		String userName = taskArguments.get("username");
-		String apiKey = taskArguments.get("api-key");
-		String accountBase = taskArguments.get("account-base");
-		if (taskArguments.get("metric-path") != null && taskArguments.get("metric-path") != "") {
-			metric_path_prefix = taskArguments.get("metric-path");
-			LOG.debug("Metric path: " + metric_path_prefix);
+		LOG.info("Starting the Rackspace Monitoring Task");
+
+		try {
+			taskArguments = checkArguments(taskArguments);
+
+			if (LOG.isDebugEnabled()) {
+				LOG.debug("Valid task arguments in monitor.xml");
+			}
+
+			httpClient = SimpleHttpClient.builder(new HashMap<String, String>()).build();
+
+			String userName = taskArguments.get("username");
+			String apiKey = taskArguments.get("api-key");
+			String accountBase = taskArguments.get("account-base");
+
+			// Authenticates and retrieves the token and endPoints from response
+			String authEndPointUrl = getAuthUrl(accountBase);
+			Authenticator authenticator = new Authenticator(httpClient);
+			authenticator.authenticate(userName, apiKey, authEndPointUrl);
+			Map<String, Map<String, String>> endpoints = authenticator.getEndpoints();
+			String authToken = authenticator.getAuthToken();
+			String defRegion = authenticator.getDefaultRegion();
+
+			// Fetches and prints metrics
+			populateFirstGenServerStats(endpoints.get("cloudServers"), authToken, defRegion);
+
+			populateAccountLimits(endpoints.get("cloudServersOpenStack").get(defRegion), authToken);
+
+			populateNextGenServerStats(endpoints.get("cloudServersOpenStack"), authToken);
+
+			populateFileStats(endpoints.get("cloudFiles"), authToken);
+
+			populateDatabaseStats(endpoints.get("cloudDatabases"), authToken);
+
+			populateLoadBalancerStats(endpoints.get("cloudLoadBalancers"), authToken);
+
+			LOG.info("Completed Rackspace Monitor Task");
+		} catch (Exception e) {
+			LOG.error("Error while running Rackspace Monitor", e);
+			throw new TaskExecutionException(e);
+		}
+		return new TaskOutput("Rackspace Stats uploaded succcessfully");
+	}
+
+	private Map<String, String> checkArguments(Map<String, String> taskArguments) {
+		if (taskArguments == null) {
+			throw new IllegalArgumentException("No task arguments in monitor.xml");
+		}
+		if (argumentInvalid(taskArguments, "username") || argumentInvalid(taskArguments, "api-key") || argumentInvalid(taskArguments, "account-base")) {
+			throw new IllegalArgumentException("Required task arguments missing in monitor.xml. Please provide rackspace parameters in monitor.xml");
+		}
+		String prefix = taskArguments.get("metric-path");
+		if (prefix != null && prefix != "") {
+			metric_path_prefix = prefix;
 			if (!metric_path_prefix.endsWith("|")) {
 				metric_path_prefix += "|";
 			}
+			taskArguments.put("metric-path", metric_path_prefix);
 		}
+		return taskArguments;
 
-		// Authenticates and retrieves the token and endPoints from response
-		String authEndPointUrl = getAuthUrl(accountBase);
-		Authenticator authenticator = new Authenticator();
-		authenticator.authenticate(userName, apiKey, authEndPointUrl);
-		Map<String, Map<String, String>> endpoints = authenticator.getEndpoints();
-		String authToken = authenticator.getAuthToken();
-		String defRegion = authenticator.getDefaultRegion();
+	}
 
-		// Fetches and prints metrics
-		populateFirstGenServerStats(endpoints.get("cloudServers"), authToken, defRegion);
-
-		populateAccountLimits(endpoints.get("cloudServersOpenStack").get(defRegion), authToken);
-
-		populateNextGenServerStats(endpoints.get("cloudServersOpenStack"), authToken);
-
-		populateFileStats(endpoints.get("cloudFiles"), authToken);
-
-		populateDatabaseStats(endpoints.get("cloudDatabases"), authToken);
-
-		populateLoadBalancerStats(endpoints.get("cloudLoadBalancers"), authToken);
-
-		return new TaskOutput("Rackspace Stats uploaded succcessfully");
+	private boolean argumentInvalid(Map<String, String> taskArguments, String argumentKey) {
+		String value = taskArguments.get(argumentKey);
+		return value == null || "".equals(value.trim());
 	}
 
 	/**
@@ -90,14 +131,15 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * 
 	 * @param accountBase
 	 * @return authUrl
+	 * @throws RackspaceMonitorException
 	 */
-	private String getAuthUrl(String accountBase) {
+	private String getAuthUrl(String accountBase) throws RackspaceMonitorException {
 		String authUrl;
 		try {
 			authUrl = AccountBase.valueOf(accountBase).getAuthUrl();
 		} catch (IllegalArgumentException e) {
-			LOG.error("Specify valid account base (US/UK in monitor.xml)", e);
-			throw new RuntimeException(e);
+			LOG.error("Specify valid account base (US/UK in monitor.xml)");
+			throw new RackspaceMonitorException(e);
 		}
 		return authUrl;
 
@@ -113,19 +155,26 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * @param defRegion
 	 */
 	private void populateFirstGenServerStats(Map<String, String> serviceEndPoints, String authToken, String defRegion) {
-		try {
-			String serviceUrl = serviceEndPoints.get(defRegion);
-			FirstGenServerStats cloudServerStats = new FirstGenServerStats();
-			Map<String, Map<String, Long>> metricsMap = cloudServerStats.getMetrics(authToken, serviceUrl);
-			for (Entry<String, Map<String, Long>> serverMetrics : metricsMap.entrySet()) {
-				String serverName = serverMetrics.getKey();
-				Map<String, Long> serverStats = serverMetrics.getValue();
-				for (Entry<String, Long> stats : serverStats.entrySet()) {
-					printMetric(String.format(FirstGenServerStats.metricPath, defRegion, serverName), stats.getKey(), stats.getValue());
+		if (serviceEndPoints != null) {
+			try {
+				String serviceUrl = serviceEndPoints.get(defRegion);
+				FirstGenServerStats cloudServerStats = new FirstGenServerStats(httpClient);
+				Map<String, Map<String, Long>> metricsMap = cloudServerStats.getMetrics(authToken, serviceUrl);
+				for (Entry<String, Map<String, Long>> serverMetrics : metricsMap.entrySet()) {
+					String serverName = serverMetrics.getKey();
+					Map<String, Long> serverStats = serverMetrics.getValue();
+					for (Entry<String, Long> stats : serverStats.entrySet()) {
+						printMetric(String.format(FirstGenServerStats.metricPath, defRegion, serverName), stats.getKey(), stats.getValue());
+					}
 				}
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Completed collecting First Gen Server stats");
+				}
+			} catch (Exception e) {
+				LOG.error("Error fetching First GenServer stats ", e);
 			}
-		} catch (Exception e) {
-			LOG.error("Error fetching First GenServer stats ", e);
+		} else {
+			LOG.error("Skipping fetching FirstGen Server Stats: Missing service with name 'cloudServers' in the authentication response (serviceCatalog - endPoints)");
 		}
 	}
 
@@ -139,7 +188,7 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 */
 	private void populateAccountLimits(String url, String authToken) {
 		try {
-			Map<String, Long> limitsMap = new NextGenServerStats().getLimits(url, authToken);
+			Map<String, Long> limitsMap = new NextGenServerStats(httpClient).getLimits(url, authToken);
 			for (Entry<String, Long> limits : limitsMap.entrySet()) {
 				printMetric(NextGenServerStats.limitsPath, limits.getKey(), limits.getValue());
 			}
@@ -155,21 +204,28 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * @param authToken
 	 */
 	private void populateNextGenServerStats(Map<String, String> serviceEndPoints, String authToken) {
-		for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
-			try {
-				NextGenServerStats cloudServerStats = new NextGenServerStats();
-				Map<String, Map<String, Long>> metricsMap = cloudServerStats.getMetrics(authToken, regionEndPoint.getValue());
-				for (Entry<String, Map<String, Long>> serverMetrics : metricsMap.entrySet()) {
-					String serverName = serverMetrics.getKey();
-					Map<String, Long> serverStats = serverMetrics.getValue();
-					for (Entry<String, Long> stats : serverStats.entrySet()) {
-						printMetric(String.format(NextGenServerStats.metricPath, regionEndPoint.getKey(), serverName), stats.getKey(),
-								stats.getValue());
+		if (serviceEndPoints != null) {
+			for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
+				try {
+					NextGenServerStats cloudServerStats = new NextGenServerStats(httpClient);
+					Map<String, Map<String, Long>> metricsMap = cloudServerStats.getMetrics(authToken, regionEndPoint.getValue());
+					for (Entry<String, Map<String, Long>> serverMetrics : metricsMap.entrySet()) {
+						String serverName = serverMetrics.getKey();
+						Map<String, Long> serverStats = serverMetrics.getValue();
+						for (Entry<String, Long> stats : serverStats.entrySet()) {
+							printMetric(String.format(NextGenServerStats.metricPath, regionEndPoint.getKey(), serverName), stats.getKey(),
+									stats.getValue());
+						}
 					}
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Completed collecting Next Gen Server stats for region " + regionEndPoint.getKey());
+					}
+				} catch (Exception e) {
+					LOG.error("Error populating NextGen Server Stats for region " + regionEndPoint.getKey(), e);
 				}
-			} catch (Exception e) {
-				LOG.error("Error populating NextGen Server Stats for region " + regionEndPoint.getKey(), e);
 			}
+		} else {
+			LOG.error("Skipping fetching Next Gen Server Stats: Missing service with name 'cloudServersOpenStack' in the authentication response (serviceCatalog - endPoints)");
 		}
 	}
 
@@ -180,22 +236,30 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * @param authToken
 	 */
 	private void populateFileStats(Map<String, String> serviceEndPoints, String authToken) {
-		for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
-			try {
-				CloudFilesStats fileStats = new CloudFilesStats();
-				Map<String, Map<String, Long>> metricsMap = fileStats.getMetrics(authToken, regionEndPoint.getValue());
-				for (Entry<String, Map<String, Long>> containerMetrics : metricsMap.entrySet()) {
-					String containerName = containerMetrics.getKey();
-					Map<String, Long> containerStats = containerMetrics.getValue();
-					for (Entry<String, Long> stats : containerStats.entrySet()) {
-						printMetric(String.format(CloudFilesStats.metricPath, regionEndPoint.getKey(), containerName), stats.getKey(),
-								stats.getValue());
+		if (serviceEndPoints != null) {
+			for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
+				try {
+					CloudFilesStats fileStats = new CloudFilesStats(httpClient);
+					Map<String, Map<String, Long>> metricsMap = fileStats.getMetrics(authToken, regionEndPoint.getValue());
+					for (Entry<String, Map<String, Long>> containerMetrics : metricsMap.entrySet()) {
+						String containerName = containerMetrics.getKey();
+						Map<String, Long> containerStats = containerMetrics.getValue();
+						for (Entry<String, Long> stats : containerStats.entrySet()) {
+							printMetric(String.format(CloudFilesStats.metricPath, regionEndPoint.getKey(), containerName), stats.getKey(),
+									stats.getValue());
+						}
 					}
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Completed collecting File stats for region " + regionEndPoint.getKey());
+					}
+				} catch (Exception e) {
+					LOG.error("Error fetching File metrics for region " + regionEndPoint.getKey(), e);
 				}
-			} catch (Exception e) {
-				LOG.error("Error fetching File metrics for region " + regionEndPoint.getKey(), e);
 			}
+		} else {
+			LOG.error("Skipping fetching File Stats: Missing service with name 'cloudFiles' in the authentication response (serviceCatalog - endPoints)");
 		}
+
 	}
 
 	/**
@@ -205,20 +269,28 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * @param authToken
 	 */
 	private void populateDatabaseStats(Map<String, String> serviceEndPoints, String authToken) {
-		for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
-			try {
-				DatabaseStats databaseStats = new DatabaseStats();
-				Map<String, Map<String, Long>> metricsMap = databaseStats.getMetrics(authToken, regionEndPoint.getValue());
-				for (Entry<String, Map<String, Long>> instanceMetrics : metricsMap.entrySet()) {
-					String instanceName = instanceMetrics.getKey();
-					Map<String, Long> instanceStats = instanceMetrics.getValue();
-					for (Entry<String, Long> stats : instanceStats.entrySet()) {
-						printMetric(String.format(DatabaseStats.metricPath, regionEndPoint.getKey(), instanceName), stats.getKey(), stats.getValue());
+		if (serviceEndPoints != null) {
+			for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
+				try {
+					DatabaseStats databaseStats = new DatabaseStats(httpClient);
+					Map<String, Map<String, Long>> metricsMap = databaseStats.getMetrics(authToken, regionEndPoint.getValue());
+					for (Entry<String, Map<String, Long>> instanceMetrics : metricsMap.entrySet()) {
+						String instanceName = instanceMetrics.getKey();
+						Map<String, Long> instanceStats = instanceMetrics.getValue();
+						for (Entry<String, Long> stats : instanceStats.entrySet()) {
+							printMetric(String.format(DatabaseStats.metricPath, regionEndPoint.getKey(), instanceName), stats.getKey(),
+									stats.getValue());
+						}
 					}
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Completed collecting Database stats for region " + regionEndPoint.getKey());
+					}
+				} catch (Exception e) {
+					LOG.error("Error fetching Database Stats for region " + regionEndPoint.getKey(), e);
 				}
-			} catch (Exception e) {
-				LOG.error("Error fetching Database Stats for region " + regionEndPoint.getKey(), e);
 			}
+		} else {
+			LOG.error("Skipping fetching Database Stats: Missing service with name 'cloudDatabases' in the authentication response (serviceCatalog - endPoints)");
 		}
 
 	}
@@ -230,21 +302,28 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * @param authToken
 	 */
 	private void populateLoadBalancerStats(Map<String, String> serviceEndPoints, String authToken) {
-		for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
-			try {
-				LoadBalancerStats loadbalancerStats = new LoadBalancerStats();
-				Map<String, Map<String, Long>> metricsMap = loadbalancerStats.getMetrics(authToken, regionEndPoint.getValue());
-				for (Entry<String, Map<String, Long>> instanceMetrics : metricsMap.entrySet()) {
-					String instanceName = instanceMetrics.getKey();
-					Map<String, Long> instanceStats = instanceMetrics.getValue();
-					for (Entry<String, Long> stats : instanceStats.entrySet()) {
-						printMetric(String.format(LoadBalancerStats.metricPath, regionEndPoint.getKey(), instanceName), stats.getKey(),
-								stats.getValue());
+		if (serviceEndPoints != null) {
+			for (Entry<String, String> regionEndPoint : serviceEndPoints.entrySet()) {
+				try {
+					LoadBalancerStats loadbalancerStats = new LoadBalancerStats(httpClient);
+					Map<String, Map<String, Long>> metricsMap = loadbalancerStats.getMetrics(authToken, regionEndPoint.getValue());
+					for (Entry<String, Map<String, Long>> instanceMetrics : metricsMap.entrySet()) {
+						String instanceName = instanceMetrics.getKey();
+						Map<String, Long> instanceStats = instanceMetrics.getValue();
+						for (Entry<String, Long> stats : instanceStats.entrySet()) {
+							printMetric(String.format(LoadBalancerStats.metricPath, regionEndPoint.getKey(), instanceName), stats.getKey(),
+									stats.getValue());
+						}
 					}
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Completed collecting Load Balancer stats for region " + regionEndPoint.getKey());
+					}
+				} catch (Exception e) {
+					LOG.error("Error fetching load balancer metrics for region " + regionEndPoint.getKey(), e);
 				}
-			} catch (Exception e) {
-				LOG.error("Error fetching load balancer metrics for region " + regionEndPoint.getKey(), e);
 			}
+		} else {
+			LOG.error("Skipping fetching Loadbalancer Stats: Missing service with name 'cloudLoadbalancers' in the authentication response (serviceCatalog - endPoints)");
 		}
 
 	}
@@ -272,4 +351,5 @@ public class RackspaceMonitor extends AManagedMonitor {
 	private static String getImplementationVersion() {
 		return RackspaceMonitor.class.getPackage().getImplementationTitle();
 	}
+
 }
