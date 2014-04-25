@@ -82,6 +82,8 @@ The following metrics are reported under \<LoadBalancers\>
 |{Region}/{InstanceName}/Status	| Current instance state|
 |{Region}/{InstanceName}/Node Count| Number of nodes this loadbalancer caters to servicing the request|
 
+Status values from Rackspace REST api are represented as integers in this extension. Refer [here](https://github.com/Appdynamics/rackspace-monitoring-extension/blob/master/StatusDescription) for details.
+
 ## Custom Dashboard
 ![]()
 
