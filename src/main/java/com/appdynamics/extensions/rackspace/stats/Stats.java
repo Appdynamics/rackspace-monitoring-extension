@@ -15,7 +15,6 @@
  */
 package com.appdynamics.extensions.rackspace.stats;
 
-import java.io.IOException;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
@@ -24,8 +23,6 @@ import com.appdynamics.extensions.http.Response;
 import com.appdynamics.extensions.http.SimpleHttpClient;
 import com.appdynamics.extensions.http.WebTarget;
 import com.appdynamics.extensions.rackspace.exception.RackspaceMonitorException;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -84,14 +81,8 @@ public abstract class Stats {
 		try {
 			JsonNode node = mapper.readValue(response.inputStream(), JsonNode.class);
 			return node;
-		} catch (JsonParseException e) {
-			LOG.error(e);
-			throw new RackspaceMonitorException(e);
-		} catch (JsonMappingException e) {
-			LOG.error(e);
-			throw new RackspaceMonitorException(e);
-		} catch (IOException e) {
-			LOG.error(e);
+		} catch (Exception e) {
+			LOG.error("Exception while mapping json content to Json Node object ", e);
 			throw new RackspaceMonitorException(e);
 		}
 	}
