@@ -70,8 +70,13 @@ public class Authenticator {
 				LOG.error("Error in authentication response " + message);
 				throw new RackspaceMonitorException("Error in authentication response " + message);
 			}
-			if (node != null)
+			if (node != null) {
 				parseAuthenticationResponse(node);
+			} else {
+				LOG.error("Json node is null after authentication, quitting monitor");
+				throw new RackspaceMonitorException("Json node is null after authentication, quitting monitor");
+			}
+
 		} finally {
 			try {
 				if (response != null) {
