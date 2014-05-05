@@ -85,7 +85,7 @@ The following metrics are reported under \<LoadBalancers\>
 Status values from Rackspace REST api are represented as integers in this extension. Refer [here](https://github.com/Appdynamics/rackspace-monitoring-extension/blob/master/StatusDescription) for details.
 
 ## Custom Dashboard
-![](https://github.com/Appdynamics/rackspace-monitoring-extension/blob/master/Dashboard.png)
+![](https://github.com/Appdynamics/rackspace-monitoring-extension/raw/master/Dashboard.png)
 
 ##Contributing
 
