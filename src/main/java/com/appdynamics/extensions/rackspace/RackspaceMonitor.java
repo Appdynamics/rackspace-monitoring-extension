@@ -57,6 +57,7 @@ public class RackspaceMonitor extends AManagedMonitor {
 	 * collects the metrics and uploads them to the AppDynamics Controller
 	 */
 	public TaskOutput execute(Map<String, String> taskArguments, TaskExecutionContext arg1) throws TaskExecutionException {
+
 		LOG.info("Starting the Rackspace Monitoring Task");
 
 		try {
@@ -68,14 +69,7 @@ public class RackspaceMonitor extends AManagedMonitor {
 
 			httpClient = SimpleHttpClient.builder(new HashMap<String, String>()).build();
 
-			String userName = taskArguments.get("username");
-			String apiKey = taskArguments.get("api-key");
-			String accountBase = taskArguments.get("account-base");
-
-			// Authenticates and retrieves the token and endPoints from response
-			String authEndPointUrl = getAuthUrl(accountBase);
-			Authenticator authenticator = new Authenticator(httpClient);
-			authenticator.authenticate(userName, apiKey, authEndPointUrl);
+			Authenticator authenticator = initAuthenticator(taskArguments);
 			Map<String, Map<String, String>> endpoints = authenticator.getEndpoints();
 			String authToken = authenticator.getAuthToken();
 			String defRegion = authenticator.getDefaultRegion();
@@ -101,6 +95,18 @@ public class RackspaceMonitor extends AManagedMonitor {
 		return new TaskOutput("Rackspace Stats uploaded succcessfully");
 	}
 
+	private Authenticator initAuthenticator(Map<String, String> taskArguments) throws RackspaceMonitorException {
+		String userName = taskArguments.get("username");
+		String apiKey = taskArguments.get("api-key");
+		String accountBase = taskArguments.get("account-base");
+
+		// Authenticates and retrieves the token and endPoints from response
+		String authEndPointUrl = getAuthUrl(accountBase);
+		Authenticator authenticator = new Authenticator(httpClient);
+		authenticator.authenticate(userName, apiKey, authEndPointUrl);
+		return authenticator;
+	}
+
 	private Map<String, String> checkArguments(Map<String, String> taskArguments) {
 		if (taskArguments == null) {
 			throw new IllegalArgumentException("No task arguments in monitor.xml");
@@ -108,13 +114,13 @@ public class RackspaceMonitor extends AManagedMonitor {
 		if (argumentInvalid(taskArguments, "username") || argumentInvalid(taskArguments, "api-key") || argumentInvalid(taskArguments, "account-base")) {
 			throw new IllegalArgumentException("Required task arguments missing in monitor.xml. Please provide rackspace parameters in monitor.xml");
 		}
-		String prefix = taskArguments.get("metric-path");
+		String prefix = taskArguments.get("metric-prefix");
 		if (prefix != null && prefix != "") {
 			metric_path_prefix = prefix;
 			if (!metric_path_prefix.endsWith("|")) {
 				metric_path_prefix += "|";
 			}
-			taskArguments.put("metric-path", metric_path_prefix);
+			taskArguments.put("metric-prefix", metric_path_prefix);
 		}
 		return taskArguments;
 
@@ -167,9 +173,6 @@ public class RackspaceMonitor extends AManagedMonitor {
 						printMetric(String.format(FirstGenServerStats.metricPath, defRegion, serverName), stats.getKey(), stats.getValue());
 					}
 				}
-				if (LOG.isDebugEnabled()) {
-					LOG.debug("Completed collecting First Gen Server stats");
-				}
 			} catch (Exception e) {
 				LOG.error("Error fetching First GenServer stats ", e);
 			}
@@ -217,9 +220,6 @@ public class RackspaceMonitor extends AManagedMonitor {
 									stats.getValue());
 						}
 					}
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Completed collecting Next Gen Server stats for region " + regionEndPoint.getKey());
-					}
 				} catch (Exception e) {
 					LOG.error("Error populating NextGen Server Stats for region " + regionEndPoint.getKey(), e);
 				}
@@ -248,9 +248,6 @@ public class RackspaceMonitor extends AManagedMonitor {
 							printMetric(String.format(CloudFilesStats.metricPath, regionEndPoint.getKey(), containerName), stats.getKey(),
 									stats.getValue());
 						}
-					}
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Completed collecting File stats for region " + regionEndPoint.getKey());
 					}
 				} catch (Exception e) {
 					LOG.error("Error fetching File metrics for region " + regionEndPoint.getKey(), e);
@@ -282,9 +279,6 @@ public class RackspaceMonitor extends AManagedMonitor {
 									stats.getValue());
 						}
 					}
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Completed collecting Database stats for region " + regionEndPoint.getKey());
-					}
 				} catch (Exception e) {
 					LOG.error("Error fetching Database Stats for region " + regionEndPoint.getKey(), e);
 				}
@@ -315,9 +309,6 @@ public class RackspaceMonitor extends AManagedMonitor {
 									stats.getValue());
 						}
 					}
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Completed collecting Load Balancer stats for region " + regionEndPoint.getKey());
-					}
 				} catch (Exception e) {
 					LOG.error("Error fetching load balancer metrics for region " + regionEndPoint.getKey(), e);
 				}
@@ -335,11 +326,7 @@ public class RackspaceMonitor extends AManagedMonitor {
 
 	private void printMetric(String metricPath, String metricName, Object metricValue, String aggregation, String timeRollup, String cluster) {
 		MetricWriter metricWriter = super.getMetricWriter(metricPath + metricName, aggregation, timeRollup, cluster);
-		if (metricValue instanceof Double) {
-			metricWriter.printMetric(String.valueOf(Math.round((Double) metricValue)));
-		} else if (metricValue instanceof Float) {
-			metricWriter.printMetric(String.valueOf(Math.round((Float) metricValue)));
-		} else {
+		if (metricValue != null) {
 			metricWriter.printMetric(String.valueOf(metricValue));
 		}
 	}
@@ -351,5 +338,4 @@ public class RackspaceMonitor extends AManagedMonitor {
 	private static String getImplementationVersion() {
 		return RackspaceMonitor.class.getPackage().getImplementationTitle();
 	}
-
 }

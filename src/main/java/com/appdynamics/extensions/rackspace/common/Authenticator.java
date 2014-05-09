@@ -107,18 +107,17 @@ public class Authenticator {
 			JsonNode node = mapper.readValue(response.inputStream(), JsonNode.class);
 			return node;
 		} catch (Exception e) {
-			LOG.error("Exception while mapping json content to Json Node object ", e);
+			LOG.error(e);
 			throw new RackspaceMonitorException(e);
 		}
 	}
 
 	private void parseAuthenticationResponse(JsonNode node) {
-		JsonNode accessNode = node.path("access");
-		JsonNode tokenNode = accessNode.path("token");
-		setAuthToken(tokenNode.path("id").asText());
-		setDefaultRegion(accessNode.path("user").path("RAX-AUTH:defaultRegion").asText());
+		JsonNode tokenNode = node.findValue("token");
+		setAuthToken(tokenNode.get("id").asText());
+		setDefaultRegion(node.findValue("RAX-AUTH:defaultRegion").asText());
 
-		JsonNode serviceCatalog = accessNode.get("serviceCatalog");
+		JsonNode serviceCatalog = node.findValue("serviceCatalog");
 		setEndpoints(new HashMap<String, Map<String, String>>());
 
 		for (JsonNode serviceNode : serviceCatalog) {

@@ -20,7 +20,7 @@
 				Default (if default-value="") is "Custom Metrics|Rackspace|" under
 				Application Infrastructure Performance in every tier
 			 -->
-			<argument name="metric-path" is-required="false" default-value=""/>
+			<argument name="metric-prefix" is-required="false" default-value=""/>
 		</task-arguments>
 		<java-task>
 		      <classpath>rackspace-monitoring-extension.jar</classpath>
