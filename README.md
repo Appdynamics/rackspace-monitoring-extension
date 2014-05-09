@@ -12,7 +12,7 @@ Rackspace Cloud is a set of cloud computing services from Rackspace. This extens
 1. Run 'mvn clean install' from the rackspace-monitoring-extension directory
 2. Download the file RackspaceMonitor.zip located in the 'target' directory into \<machineagent install dir\>/monitors/
 3. Unzip the downloaded file
-4. In \<machineagent install dir\>/monitors/RackspaceMonitor/, open monitor.xml and configure the Rackspace parameters. This extension uses UserName and API key as Authentication parameters. Refer [here](http://docs.rackspace.com/auth/api/v2.0/auth-client-devguide/content/QuickStart-000.html) for details 
+4. In \<machineagent install dir\>/monitors/RackspaceMonitor/, open monitor.xml and configure the Rackspace parameters. This extension uses UserName and API key as Authentication parameters. API key can be obtained by loging into your Rackspace Cloud Control panel. Refer [here](http://docs.rackspace.com/auth/api/v2.0/auth-client-devguide/content/QuickStart-000.html) for details 
 <pre>
 &lt;argument name="username" is-required="true" default-value="" /&gt;
 &lt;argument name="api-key" is-required="true" default-value="" /&gt;
@@ -93,7 +93,7 @@ Always feel free to fork and contribute any changes directly here on GitHub.
 
 ##Community
 
-Find out more in the [AppSphere]() community.
+Find out more in the [AppSphere](http://community.appdynamics.com/t5/AppDynamics-eXchange/Rackspace-Cloud-Monitoring-Extension/idi-p/8408) community.
 
 ##Support
 
