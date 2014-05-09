@@ -18,7 +18,7 @@ Rackspace Cloud is a set of cloud computing services from Rackspace. This extens
 &lt;argument name="api-key" is-required="true" default-value="" /&gt;
 	&lt;!-- US/UK --&gt;
 &lt;argument name="account-base" is-required="true" default-value="US" /&gt;
-&lt;argument name="metric-path" is-required="false" default-value="" /&gt;
+&lt;argument name="metric-prefix" is-required="false" default-value="" /&gt;
 </pre>
 5. Restart the Machine Agent.
 
